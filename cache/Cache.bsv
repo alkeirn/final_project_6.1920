@@ -175,6 +175,7 @@ module mkCache(Cache);
       if(stb_val.addr == e.addr) begin //check for stb hit
         hitQ.enq(stb_val.data);
         if(debug) $display("stb hitenq %x", stb_val.data);
+        
       end else begin //check for l1 hit
         if(fromMaybe(?, tagArray[idx]) == tag) begin      
           //start a hit
@@ -182,8 +183,8 @@ module mkCache(Cache);
                          responseOnWrite: False,
                          address: idx,
                          datain: ?});
-
           mshr <= GetHit;
+
         end else begin // we have a miss
           missReq <= e;
           let dirty_bit = dirtyArray[idx];
