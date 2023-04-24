@@ -36,7 +36,7 @@ module mkBeveren(Empty);
        let newrand <- randomMem.next;
        deadlockChecker <= 0;
        MainMemReq newreq = newrand;
-       newreq.addr = {0,newreq.addr[13:2],2'b0};
+       newreq.addr = {0,newreq.addr[13:2],2'b0}; //what is this line for?
        if ( newreq.write == 0) counterIn <= counterIn + 1;
        mainRef.put(newreq);
        cache.putFromProc(newreq);
