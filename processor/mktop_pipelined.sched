@@ -1,0 +1,108 @@
+=== Generated schedule for mktop_pipelined ===
+
+Rule schedule
+-------------
+Rule: bram_serverAdapter_outData_enqueue
+Predicate: bram_serverAdapter_outData_enqw.whas &&
+	   ((! bram_serverAdapter_outData_dequeueing.whas) ||
+	    bram_serverAdapter_outData_ff.i_notEmpty)
+Blocking rules: (none)
+ 
+Rule: bram_serverAdapter_outData_dequeue
+Predicate: bram_serverAdapter_outData_dequeueing.whas &&
+	   bram_serverAdapter_outData_ff.i_notEmpty
+Blocking rules: (none)
+ 
+Rule: bram_serverAdapter_cnt_finalAdd
+Predicate: bram_serverAdapter_cnt_1.whas || bram_serverAdapter_cnt_2.whas ||
+	   bram_serverAdapter_cnt_3.whas
+Blocking rules: (none)
+ 
+Rule: bram_serverAdapter_s1__dreg_update
+Predicate: True
+Blocking rules: (none)
+ 
+Rule: bram_serverAdapter_stageReadResponseAlways
+Predicate: bram_serverAdapter_writeWithResp.whas
+Blocking rules: (none)
+ 
+Rule: bram_serverAdapter_moveToOutFIFO
+Predicate: ((! bram_serverAdapter_s1[0]) ||
+	    bram_serverAdapter_outData_ff.i_notFull) &&
+	   bram_serverAdapter_s1[1]
+Blocking rules: (none)
+ 
+Rule: bram_serverAdapter_overRun
+Predicate: bram_serverAdapter_s1[1] &&
+	   ((! bram_serverAdapter_outData_beforeEnq.read) ||
+	    (! bram_serverAdapter_outData_beforeDeq.read) ||
+	    (! bram_serverAdapter_outData_ff.i_notFull))
+Blocking rules: (none)
+ 
+Rule: tic
+Predicate: True
+Blocking rules: (none)
+ 
+Rule: requestI
+Predicate: rv_core.RDY_getIReq && iCache.RDY_putFromProc
+Blocking rules: (none)
+ 
+Rule: responseI
+Predicate: rv_core.RDY_getIResp && iCache.RDY_getToProc
+Blocking rules: requestI
+ 
+Rule: requestD
+Predicate: rv_core.RDY_getDReq && dCache.RDY_putFromProc
+Blocking rules: (none)
+ 
+Rule: responseD
+Predicate: rv_core.RDY_getDResp && dCache.RDY_getToProc
+Blocking rules: requestD
+ 
+Rule: iToMemReq
+Predicate: iCache.RDY_getToMem && mainMem.RDY_put && cacheQueue.i_notFull
+Blocking rules: (none)
+ 
+Rule: iFromMemResp
+Predicate: cacheQueue.i_notEmpty &&
+	   (cacheQueue.first || (iCache.RDY_putFromMem && mainMem.RDY_get))
+Blocking rules: (none)
+ 
+Rule: dToMemReq
+Predicate: dCache.RDY_getToMem && mainMem.RDY_put && cacheQueue.i_notFull
+Blocking rules: iToMemReq
+ 
+Rule: dFromMemResp
+Predicate: cacheQueue.i_notEmpty &&
+	   ((! cacheQueue.first) ||
+	    (dCache.RDY_putFromMem && mainMem.RDY_get))
+Blocking rules: iFromMemResp
+ 
+Rule: requestMMIO
+Predicate: rv_core.RDY_getMMIOReq && mmioreq.i_notFull
+Blocking rules: (none)
+ 
+Rule: responseMMIO
+Predicate: rv_core.RDY_getMMIOResp && mmioreq.i_notEmpty
+Blocking rules: (none)
+ 
+Logical execution order: tic,
+			 requestI,
+			 responseI,
+			 requestD,
+			 responseD,
+			 iToMemReq,
+			 iFromMemResp,
+			 dToMemReq,
+			 dFromMemResp,
+			 requestMMIO,
+			 responseMMIO,
+			 bram_serverAdapter_stageReadResponseAlways,
+			 bram_serverAdapter_overRun,
+			 bram_serverAdapter_moveToOutFIFO,
+			 bram_serverAdapter_outData_enqueue,
+			 bram_serverAdapter_outData_dequeue,
+			 bram_serverAdapter_cnt_finalAdd,
+			 bram_serverAdapter_s1__dreg_update
+
+===============================================

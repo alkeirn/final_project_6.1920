@@ -5,6 +5,7 @@ import FIFO::*;
 import Cache::*;
 import MemTypes::*;
 import MainMem::*;
+import Vector::*;
 typedef Bit#(32) Word;
 typedef Bit#(512) Line;
 
@@ -14,7 +15,8 @@ module mktop_pipelined(Empty);
     //keilee: changed BRAM to read from memlines.vmh instead of mem.vmh
     cfg.loadFormat = tagged Hex "memlines.vmh";
     //keilee: changed BRAM to handle Lines instead of Words
-    BRAM2PortBE#(Bit#(30), Line, 4) bram <- mkBRAM2ServerBE(cfg);
+    //BRAM2PortBE#(Bit#(30), Line, 4) bram <- mkBRAM2ServerBE(cfg);
+    BRAM1PortBE#(Bit#(7), Vector#(16, Bit#(32)), 64) bram <- mkBRAM1ServerBE(cfg);
     //keilee: IMem and Dmem Caches and FIFO to keep up with them
     Cache iCache <- mkCache;
     Cache dCache <- mkCache;
@@ -53,7 +55,7 @@ module mktop_pipelined(Empty);
         let x <- iCache.getToProc;
         let req = ireq;
         if (debug) $display("Get IResp ", fshow(req), fshow(x));
-        req.data = x;
+        req.data = x.first;
         rv_core.getIResp(req);
     endrule
 
@@ -74,7 +76,7 @@ module mktop_pipelined(Empty);
         let x <- dCache.getToProc;
         let req = dreq;
         if (debug) $display("Get IResp ", fshow(req), fshow(x));
-        req.data = x;
+        req.data = x.first;
         rv_core.getDResp(req);
     endrule
 
