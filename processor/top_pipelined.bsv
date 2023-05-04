@@ -2,13 +2,26 @@ import RVUtil::*;
 import BRAM::*;
 import pipelined::*;
 import FIFO::*;
+import Cache::*;
+import MemTypes::*;
+import MainMem::*;
 typedef Bit#(32) Word;
+typedef Bit#(512) Line;
 
 module mktop_pipelined(Empty);
     // Instantiate the dual ported memory
     BRAM_Configure cfg = defaultValue();
-    cfg.loadFormat = tagged Hex "mem.vmh";
-    BRAM2PortBE#(Bit#(30), Word, 4) bram <- mkBRAM2ServerBE(cfg);
+    //keilee: changed BRAM to read from memlines.vmh instead of mem.vmh
+    cfg.loadFormat = tagged Hex "memlines.vmh";
+    //keilee: changed BRAM to handle Lines instead of Words
+    BRAM2PortBE#(Bit#(30), Line, 4) bram <- mkBRAM2ServerBE(cfg);
+    //keilee: IMem and Dmem Caches and FIFO to keep up with them
+    Cache iCache <- mkCache;
+    Cache dCache <- mkCache;
+    FIFO#(Bit#(1)) cacheQueue <- mkFIFO;
+
+    //keilee: MainMem from Beveren.bsv
+    MainMem mainMem <- mkMainMem();
 
     RVIfc rv_core <- mkpipelined;
     Reg#(Mem) ireq <- mkRegU;
@@ -21,42 +34,78 @@ module mktop_pipelined(Empty);
 	    cycle_count <= cycle_count + 1;
     endrule
 
+    //keilee: change I and D requests and responses for Caches
+
     rule requestI;
         let req <- rv_core.getIReq;
         if (debug) $display("Get IReq", fshow(req));
         ireq <= req;
-            bram.portB.request.put(BRAMRequestBE{
-                    writeen: req.byte_en,
-                    responseOnWrite: True,
-                    address: truncate(req.addr >> 2),
-                    datain: req.data});
+        iCache.putFromProc(req);
+            // bram.portB.request.put(BRAMRequestBE{
+            //         writeen: req.byte_en,
+            //         responseOnWrite: True,
+            //         address: truncate(req.addr >> 2),
+            //         datain: req.data});
     endrule
 
     rule responseI;
-        let x <- bram.portB.response.get();
+        //let x <- bram.portB.response.get();
+        let x <- iCache.getToProc;
         let req = ireq;
         if (debug) $display("Get IResp ", fshow(req), fshow(x));
         req.data = x;
-            rv_core.getIResp(req);
+        rv_core.getIResp(req);
     endrule
 
     rule requestD;
         let req <- rv_core.getDReq;
         dreq <= req;
         if (debug) $display("Get DReq", fshow(req));
-        bram.portA.request.put(BRAMRequestBE{
-          writeen: req.byte_en,
-          responseOnWrite: True,
-          address: truncate(req.addr >> 2),
-          datain: req.data});
+        dCache.putFromProc(req);
+        // bram.portA.request.put(BRAMRequestBE{
+        //   writeen: req.byte_en,
+        //   responseOnWrite: True,
+        //   address: truncate(req.addr >> 2),
+        //   datain: req.data});
     endrule
 
     rule responseD;
-        let x <- bram.portA.response.get();
+        //let x <- bram.portA.response.get();
+        let x <- dCache.getToProc;
         let req = dreq;
         if (debug) $display("Get IResp ", fshow(req), fshow(x));
         req.data = x;
-            rv_core.getDResp(req);
+        rv_core.getDResp(req);
+    endrule
+
+    //keilee: rules for Caches to MainMem interface including queue tracking 
+
+    rule iToMemReq;
+        let iReq <- iCache.getToMem();
+        mainMem.put(iReq);
+        cacheQueue.enq(0);
+    endrule
+
+    rule iFromMemResp;
+        if (cacheQueue.first() == 0) begin
+            let resp <- mainMem.get;
+            iCache.putFromMem(resp);
+            cacheQueue.deq();
+        end
+    endrule
+
+    rule dToMemReq;
+        let dReq <- dCache.getToMem();
+        mainMem.put(dReq);
+        cacheQueue.enq(1);
+    endrule
+
+    rule dFromMemResp;
+        if (cacheQueue.first() == 1) begin
+            let resp <- mainMem.get;
+            dCache.putFromMem(resp);
+            cacheQueue.deq();
+        end
     endrule
   
     rule requestMMIO;

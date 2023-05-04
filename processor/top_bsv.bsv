@@ -3,6 +3,7 @@ import BRAM::*;
 import multicycle::*;
 import FIFO::*;
 typedef Bit#(32) Word;
+typedef Bit#(512) Line;
 
 module mktop_bsv(Empty);
     // Instantiate the dual ported memory

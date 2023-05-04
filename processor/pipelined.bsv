@@ -72,7 +72,7 @@ module mkpipelined(RVIfc);
 
     Ehr#(3, Bit#(32)) pc <- mkEhr(32'h0000000); 
     Vector#(32, Ehr#(2, Bit#(32))) rf <- replicateM(mkEhr(0)); 
-    Vector#(32, Ehr#(3, Bit#(1))) scoreboard <- replicateM(mkEhr(0));
+    Vector#(32, Ehr#(3, Bit#(3))) scoreboard <- replicateM(mkEhr(0));
     Ehr#(2, Bit#(4)) epoch <- mkEhr(0);
 
 	// Code to support Konata visualization
@@ -120,8 +120,8 @@ module mkpipelined(RVIfc);
     rule decode if (!starting);
         let from_fetch = f2d.first();
         let resp = fromImem.first();
-
-        let instr = resp.data;
+        // keilee: shave off top 32 bits of cache response for now
+        let instr = resp.data[31:0];
         let decodedInst = decodeInst(instr);
 
 		if (debug) $display("[Decode] ", fshow(decodedInst));
@@ -133,7 +133,8 @@ module mkpipelined(RVIfc);
 		let rs2 = (rs2_idx == 0 ? 0 : rf[rs2_idx][1]);
 
         if(scoreboard[rs1_idx][2] == 0 && scoreboard[rs2_idx][2] == 0) begin
-            if(decodedInst.valid_rd) begin scoreboard[rd_idx][2] <= 1; end //update scoreboard to include new destination register
+            // keilee: scoreboard fix
+            if(decodedInst.valid_rd) begin scoreboard[rd_idx][2] <= scoreboard[rd_idx][2] + 1; end //update scoreboard to include new destination register
             fromImem.deq();
             f2d.deq();
 
@@ -231,7 +232,8 @@ module mkpipelined(RVIfc);
 
             if(from_decode.dInst.valid_rd) begin //remove from scoreboard
                 let fields = getInstFields(from_decode.dInst.inst); 
-                scoreboard[fields.rd][0] <= 0;
+                // keilee: scoreboard fix
+                scoreboard[fields.rd][0] <= scoreboard[fields.rd][0] - 1;
             end
         end
     endrule
@@ -274,7 +276,8 @@ module mkpipelined(RVIfc);
 	    end
 		if (from_execute.dInst.valid_rd) begin
             let rd_idx = fields.rd;
-            scoreboard[rd_idx][1] <= 0;
+            // keilee: scoreboard fix
+            scoreboard[rd_idx][1] <= scoreboard[rd_idx][1] - 1;
 
             if (rd_idx != 0) begin
                  rf[rd_idx][0] <= from_execute.data; 
