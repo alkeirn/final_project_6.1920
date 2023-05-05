@@ -16,7 +16,7 @@ module mktop_pipelined(Empty);
     cfg.loadFormat = tagged Hex "memlines.vmh";
     //keilee: changed BRAM to handle Lines instead of Words
     //BRAM2PortBE#(Bit#(30), Line, 4) bram <- mkBRAM2ServerBE(cfg);
-    BRAM1PortBE#(Bit#(7), Vector#(16, Bit#(32)), 64) bram <- mkBRAM1ServerBE(cfg);
+    BRAM1PortBE#(Bit#(12), Vector#(16, Bit#(32)), 64) bram <- mkBRAM1ServerBE(cfg);
     //keilee: IMem and Dmem Caches and FIFO to keep up with them
     Cache iCache <- mkCache;
     Cache dCache <- mkCache;
@@ -29,7 +29,7 @@ module mktop_pipelined(Empty);
     Reg#(Mem) ireq <- mkRegU;
     Reg#(Mem) dreq <- mkRegU;
     FIFO#(Mem) mmioreq <- mkFIFO;
-    let debug = False;
+    let debug = True;
     Reg#(Bit#(32)) cycle_count <- mkReg(0);
 
     rule tic;
