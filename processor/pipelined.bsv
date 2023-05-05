@@ -247,8 +247,9 @@ module mkpipelined(RVIfc);
         retired.enq(from_execute.k_id);
 
         let fields = getInstFields(from_execute.dInst.inst);
+        
 
-        if (isMemoryInst(from_execute.dInst)) begin // (* // write_val *)
+        if (isMemoryInst(from_execute.dInst) && !isStoreInst(from_execute.dInst)) begin // (* // write_val *)
             let resp = ?;
 		    if (from_execute.mem_business.mmio) begin 
                 resp = fromMMIO.first();
