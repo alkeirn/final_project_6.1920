@@ -19,7 +19,12 @@ endinterface
 (* synthesize *)
 module mkMainMemFast(MemRef);
     BRAM_Configure cfg = defaultValue();
-    BRAM2Port#(LineAddr, Bit#(32)) bram <- mkBRAM2Server(cfg);  
+    //keilee: changed BRAM to read from memlines.vmh instead of mem.vmh
+    cfg.loadFormat = tagged Hex "memlines.vmh";
+    BRAM2Port#(LineAddr, Bit#(32)) bram <- mkBRAM2Server(cfg); 
+    //keilee: changed BRAM to handle Lines instead of Words
+    //BRAM2PortBE#(Bit#(30), Line, 4) bram <- mkBRAM2ServerBE(cfg);
+    //BRAM1PortBE#(Bit#(12), Vector#(16, Bit#(32)), 64) bram <- mkBRAM1ServerBE(cfg);
 
     method Action put(Mem req);
         bram.portA.request.put(BRAMRequest{
@@ -47,6 +52,7 @@ endmodule
 (* synthesize *)
 module mkMainMem(MainMem);
     BRAM_Configure cfg = defaultValue();
+    cfg.loadFormat = tagged Hex "memlines.vmh";
     BRAM1Port#(LineAddr, Bit#(512)) bram <- mkBRAM1Server(cfg);
     DelayLine#(40, MainMemResp) dl <- mkDL(); // Delay by 20 cycles
 

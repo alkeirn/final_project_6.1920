@@ -74,6 +74,7 @@ module mkpipelined(RVIfc);
     Ehr#(3, Bit#(32)) pc <- mkEhr(32'h0000000); 
     Vector#(32, Ehr#(2, Bit#(32))) rf <- replicateM(mkEhr(0)); 
     Vector#(32, Ehr#(3, Bit#(3))) scoreboard <- replicateM(mkEhr(0));
+    //Vector#(32, Ehr#(3, Bit#(1))) scoreboard <- replicateM(mkEhr(0));
     Ehr#(2, Bit#(4)) epoch <- mkEhr(0);
 
 	// Code to support Konata visualization
@@ -85,7 +86,7 @@ module mkpipelined(RVIfc);
 	FIFO#(KonataId) retired <- mkFIFO;
 	FIFO#(KonataId) squashed <- mkFIFO;
 
-    Bool debug = False;  
+    Bool debug = True;  
     Reg#(Bool) starting <- mkReg(True);
 	rule do_tic_logging;
         if (starting) begin
@@ -122,10 +123,9 @@ module mkpipelined(RVIfc);
         let from_fetch = f2d.first();
         let resp = fromImem.first();
         // keilee: shave off top 32 bits of cache response for now
-        let instr = resp.data[31:0];
+        let instr = resp.data;
         let decodedInst = decodeInst(instr);
 
-		if (debug) $display("[Decode] ", fshow(decodedInst));
         let rs1_idx = getInstFields(instr).rs1;
         let rs2_idx = getInstFields(instr).rs2;
         let rd_idx = getInstFields(instr).rd;
@@ -134,8 +134,10 @@ module mkpipelined(RVIfc);
 		let rs2 = (rs2_idx == 0 ? 0 : rf[rs2_idx][1]);
 
         if(scoreboard[rs1_idx][2] == 0 && scoreboard[rs2_idx][2] == 0) begin
+            if (debug) $display("[Decode] ", fshow(decodedInst));
             // keilee: scoreboard fix
             if(decodedInst.valid_rd) begin scoreboard[rd_idx][2] <= scoreboard[rd_idx][2] + 1; end //update scoreboard to include new destination register
+            // if(decodedInst.valid_rd) begin scoreboard[rd_idx][2] <= 1; end //update scoreboard to include new destination register
             fromImem.deq();
             f2d.deq();
 
@@ -151,6 +153,10 @@ module mkpipelined(RVIfc);
             decodeKonata(lfh, from_fetch.k_id);
             labelKonataLeft(lfh,from_fetch.k_id, $format(" Instr bits: %x",decodedInst.inst));
             labelKonataLeft(lfh,from_fetch.k_id, $format(" Potential r1: %x, Potential r2: %x" , rs1, rs2));
+        end
+        else begin
+            if (debug) $display("[Decode STALL] ", fshow(decodedInst));
+            if (debug) $display("[Decode STALL] %x %x", scoreboard[rs1_idx][2], scoreboard[rs2_idx][2]); 
         end
     endrule
 
@@ -206,6 +212,7 @@ module mkpipelined(RVIfc);
                     labelKonataLeft(lfh,from_decode.k_id, $format(" MMIO ", fshow(req)));
                     mmio = True;
                 end else begin 
+                    if (debug) $display("[Execute] Emit Dmem ", fshow(req));
                     labelKonataLeft(lfh,from_decode.k_id, $format(" MEM ", fshow(req)));
                     toDmem.enq(req);
                 end
@@ -234,7 +241,8 @@ module mkpipelined(RVIfc);
             if(from_decode.dInst.valid_rd) begin //remove from scoreboard
                 let fields = getInstFields(from_decode.dInst.inst); 
                 // keilee: scoreboard fix
-                scoreboard[fields.rd][0] <= scoreboard[fields.rd][0] - 1;
+                scoreboard[fields.rd][0] <= scoreboard[fields.rd][0] - 1;    
+                // scoreboard[fields.rd][0] <= 0;
             end
         end
     endrule
@@ -249,12 +257,12 @@ module mkpipelined(RVIfc);
         let fields = getInstFields(from_execute.dInst.inst);
         
 
-        if (isMemoryInst(from_execute.dInst) && !isStoreInst(from_execute.dInst)) begin // (* // write_val *)
+        if (isMemoryInst(from_execute.dInst)) begin // (* // write_val *)
             let resp = ?;
 		    if (from_execute.mem_business.mmio) begin 
                 resp = fromMMIO.first();
 		        fromMMIO.deq();
-		    end else begin 
+		    end else if (!(from_execute.dInst.inst[5] == 1)) begin
                 resp = fromDmem.first();
 		        fromDmem.deq();
 		    end
@@ -280,6 +288,7 @@ module mkpipelined(RVIfc);
             let rd_idx = fields.rd;
             // keilee: scoreboard fix
             scoreboard[rd_idx][1] <= scoreboard[rd_idx][1] - 1;
+            // scoreboard[rd_idx][1] <= 0;
 
             if (rd_idx != 0) begin
                  rf[rd_idx][0] <= from_execute.data; 
@@ -310,6 +319,7 @@ module mkpipelined(RVIfc);
     	fromImem.enq(a);
     endmethod
     method ActionValue#(Mem) getDReq();
+        if (debug) $display("[Execute] Dmem method");
 		toDmem.deq();
 		return toDmem.first();
     endmethod

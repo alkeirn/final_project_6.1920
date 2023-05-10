@@ -62,7 +62,7 @@ module mktop_pipelined(Empty);
     rule requestD;
         let req <- rv_core.getDReq;
         dreq <= req;
-        if (debug) $display("Get DReq", fshow(req));
+        if (debug) $display("Get DReq ", fshow(req));
         dCache.putFromProc(req);
         // bram.portA.request.put(BRAMRequestBE{
         //   writeen: req.byte_en,
@@ -75,7 +75,7 @@ module mktop_pipelined(Empty);
         //let x <- bram.portA.response.get();
         let x <- dCache.getToProc;
         let req = dreq;
-        if (debug) $display("Get IResp ", fshow(req), fshow(x));
+        if (debug) $display("Get DResp ", fshow(req), fshow(x));
         req.data = x.first;
         rv_core.getDResp(req);
     endrule
@@ -88,26 +88,26 @@ module mktop_pipelined(Empty);
         cacheQueue.enq(0);
     endrule
 
-    rule iFromMemResp;
-        if (cacheQueue.first() == 0) begin
+    rule iFromMemResp
+        if (cacheQueue.first() == 0); 
             let resp <- mainMem.get;
             iCache.putFromMem(resp);
             cacheQueue.deq();
-        end
     endrule
 
     rule dToMemReq;
+        if (debug) $display("dToMemReq");
         let dReq <- dCache.getToMem();
         mainMem.put(dReq);
         cacheQueue.enq(1);
     endrule
 
-    rule dFromMemResp;
-        if (cacheQueue.first() == 1) begin
+    rule dFromMemResp
+       if (cacheQueue.first() == 1); 
+            if (debug) $display("dFromMemReq");
             let resp <- mainMem.get;
             dCache.putFromMem(resp);
-            cacheQueue.deq();
-        end
+            cacheQueue.deq();   
     endrule
   
     rule requestMMIO;

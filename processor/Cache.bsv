@@ -32,7 +32,7 @@ module mkCache(Cache);
 
   Ehr#(2, Bool) lockL1 <- mkEhr(False); //lock to give the processor priority
 
-  Bool debug = False;
+  Bool debug = True;
   
   //STOREBUFFER RULES
   rule mvStbToL1 (mshr == Ready && !lockL1[1]); 
