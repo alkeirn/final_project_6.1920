@@ -26,7 +26,6 @@ module mktop_pipelined(Empty);
     MainMem mainMem <- mkMainMem();
 
     RVIfc rv_core <- mkpipelined;
-    Reg#(Mem) ireq <- mkRegU;
     Reg#(Mem) dreq <- mkRegU;
     FIFO#(Mem) mmioreq <- mkFIFO;
     let debug = True;
@@ -41,22 +40,13 @@ module mktop_pipelined(Empty);
     rule requestI;
         let req <- rv_core.getIReq;
         if (debug) $display("Get IReq", fshow(req));
-        ireq <= req;
         iCache.putFromProc(req);
-            // bram.portB.request.put(BRAMRequestBE{
-            //         writeen: req.byte_en,
-            //         responseOnWrite: True,
-            //         address: truncate(req.addr >> 2),
-            //         datain: req.data});
     endrule
 
-    rule responseI;
-        //let x <- bram.portB.response.get();
+    rule responseI;     
         let x <- iCache.getToProc;
-        let req = ireq;
-        if (debug) $display("Get IResp ", fshow(req), fshow(x));
-        req.data = x.first;
-        rv_core.getIResp(req);
+        if (debug) $display("Get IResp ", fshow(x));
+        rv_core.getIResp(x);
     endrule
 
     rule requestD;
@@ -64,15 +54,9 @@ module mktop_pipelined(Empty);
         dreq <= req;
         if (debug) $display("Get DReq ", fshow(req));
         dCache.putFromProc(req);
-        // bram.portA.request.put(BRAMRequestBE{
-        //   writeen: req.byte_en,
-        //   responseOnWrite: True,
-        //   address: truncate(req.addr >> 2),
-        //   datain: req.data});
     endrule
 
     rule responseD;
-        //let x <- bram.portA.response.get();
         let x <- dCache.getToProc;
         let req = dreq;
         if (debug) $display("Get DResp ", fshow(req), fshow(x));

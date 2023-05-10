@@ -184,7 +184,7 @@ module mkCache(Cache);
 
   //METHODS
   method Action putFromProc(Mem e) if(mshr == Ready);
-    Bit#(4) offset = e.addr[5:2]; //check this
+    Bit#(4) offset = e.addr[5:2]; 
     Bit#(7) idx = e.addr[12:6];
     Bit#(19) tag = e.addr[31:13]; 
     if(debug) $display("putFromProc %x %x", e.addr, e.byte_en);

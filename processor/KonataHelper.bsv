@@ -78,6 +78,14 @@ function Action commitKonata(File f, KonataId konataCtr, Reg#(KonataId) konataCm
     endaction
 endfunction
 
+function Action unsafeCommitKonata(File f, KonataId konataCtr, Reg#(KonataId) konataCmt);
+    action
+        //konataCmt <= konataCmt + 1;
+//        $display("[KONATA]E\t%d\t%d\t%s",konataCtr,0,"W");
+        $fdisplay(f,"R\t%d\t%d\t%d", konataCtr, konataCmt,0);
+    endaction
+endfunction
+
 function Action labelKonataLeft(File f, KonataId konataCtr, Fmt s);
     action
         // Squash have id 0
