@@ -107,9 +107,6 @@ module mkpipelined(RVIfc);
         let current_pc = pc[1];
 	    if(debug) $display("Fetch %x", current_pc);
 
-		let iid <- fetch1Konata(lfh, fresh_id, 0);
-        labelKonataLeft(lfh, iid, $format("PC : %x",current_pc));
-
         let req = Mem {byte_en : 0,
 			   addr : current_pc,
 			   data : 0};
@@ -117,20 +114,36 @@ module mkpipelined(RVIfc);
         toImem.enq(req);
 
         //check for boundary conditions to enq 2 instructions *NEW*
-        f2d.enq1(F2D{
-            pc : current_pc, 
-            ppc: current_pc + 4,
-            epoch: epoch[2], 
-            k_id: iid});
-
         if (notLineBoundary(current_pc)) begin
-           f2d.enq2(F2D{pc: 
-               current_pc + 4, 
+           pc[1] <= current_pc + 8;
+           let iid <- nfetchKonata(lfh, fresh_id, 0, 2);
+           labelKonataLeft(lfh, iid, $format("PC : %x",current_pc));
+           labelKonataLeft(lfh, iid + 1, $format("PC : %x",current_pc + 4));
+
+            f2d.enq1(F2D{
+                pc : current_pc, 
+                ppc: current_pc + 4,
+                epoch: epoch[2], 
+                k_id: iid});
+
+            f2d.enq2(F2D{
+               pc: current_pc + 4, 
                ppc : current_pc + 8, 
                epoch: epoch[2],
-               k_id: iid});
-           pc[1] <= current_pc + 8;
-        end else pc[1] <= current_pc + 4;
+               k_id: iid + 1});
+
+            
+        end else begin
+            pc[1] <= current_pc + 4;
+            let iid <- nfetchKonata(lfh, fresh_id, 0, 1);
+            labelKonataLeft(lfh, iid, $format("PC : %x",current_pc));
+
+            f2d.enq1(F2D{
+                pc : current_pc, 
+                ppc: current_pc + 4,
+                epoch: epoch[2], 
+                k_id: iid});
+        end
     endrule
 
     rule decode1 if (!starting);
@@ -190,7 +203,7 @@ module mkpipelined(RVIfc);
             if (debug) $display("[Decode] ", fshow(decodedInst));
         
             if(decodedInst.valid_rd) begin scoreboard[rd_idx][5] <= scoreboard[rd_idx][5] + 1; end //update scoreboard to include new destination register
-            fromImem.deq1();
+            fromImem.deq2();
             f2d.deq2();
 
             d2e.enq2(D2E{ 

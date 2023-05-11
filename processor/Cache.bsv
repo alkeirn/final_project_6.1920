@@ -22,7 +22,7 @@ module mkCache(Cache);
 
   Reg#(Mem) missReq <- mkReg(?);
   Reg#(Mem) hitReq <- mkReg(?);
-  Reg#(ReqStatus) mshr <- mkReg(Ready);
+  Ehr#(3, ReqStatus) mshr <- mkEhr(Ready);
 
   BRAM_Configure cfg = defaultValue;
   BRAM1PortBE#(Bit#(7), Vector#(16, Bit#(32)), 64) dataArray <- mkBRAM1ServerBE(cfg); //Fix this, makes an error
@@ -35,7 +35,7 @@ module mkCache(Cache);
   Bool debug = True;
   
   //STOREBUFFER RULES
-  rule mvStbToL1 (mshr == Ready && !lockL1[1]); 
+  rule mvStbToL1 (mshr[1] == Ready && !lockL1[1]); 
     let e = stb.first();
     stb.deq();
     if(debug) $display("mvStbToL1 %x", e.addr);
@@ -69,7 +69,7 @@ module mkCache(Cache);
             datain: ?});
       end
       missReq <= e;
-      mshr <= StartMiss;
+      mshr[1] <= StartMiss;
     end
   endrule    
 
@@ -79,7 +79,7 @@ module mkCache(Cache);
   endrule 
 
   //MISS RULES
-  rule startMiss(mshr == StartMiss);
+  rule startMiss(mshr[0] == StartMiss);
 
     Bit#(7) idx = missReq.addr[12:6]; 
     Bit#(4) offset = missReq.addr[5:2];
@@ -91,17 +91,17 @@ module mkCache(Cache);
       let data <- dataArray.portA.response.get();
       memReqQ.enq(MainMemReq{write : 1, addr : {0, wb_tag, idx}, data : pack(data) });
     end 
-    mshr <= SendFillReq;                      
+    mshr[0] <= SendFillReq;                      
   endrule
   
-  rule sendFillReq (mshr == SendFillReq);
+  rule sendFillReq (mshr[0] == SendFillReq);
     if(debug) $display("sendFillReq %x", missReq.addr);
     MainMemReq mainMissReq = getMainType(missReq);
     memReqQ.enq(mainMissReq);  
-    mshr <= WaitFillResp;
+    mshr[0] <= WaitFillResp;
   endrule
 
-  rule waitFillResp(mshr == WaitFillResp);
+  rule waitFillResp(mshr[0] == WaitFillResp);
     Bit#(4) offset = missReq.addr[5:2]; //check this
     Bit#(7) idx = missReq.addr[12:6];
     Bit#(19) tag = missReq.addr[31:13];
@@ -153,10 +153,10 @@ module mkCache(Cache);
           address: idx,
           datain: vdata});
     end
-    mshr <= Ready;
+    mshr[0] <= Ready;
   endrule
 
-  rule getHit(mshr == GetHit);
+  rule getHit(mshr[0] == GetHit);
     Bit#(4) offset = hitReq.addr[5:2]; //check this
     Bit#(7) idx = hitReq.addr[12:6];
     Bit#(19) tag = hitReq.addr[31:13];
@@ -179,11 +179,11 @@ module mkCache(Cache);
         second_valid: False}); 
     end
 
-    mshr <= Ready;
+    mshr[0] <= Ready;
   endrule
 
   //METHODS
-  method Action putFromProc(Mem e) if(mshr == Ready);
+  method Action putFromProc(Mem e) if(mshr[1] == Ready);
     Bit#(4) offset = e.addr[5:2]; 
     Bit#(7) idx = e.addr[12:6];
     Bit#(19) tag = e.addr[31:13]; 
@@ -214,7 +214,7 @@ module mkCache(Cache);
               address: idx,
               datain: ?});
       
-          mshr <= GetHit;
+          mshr[1] <= GetHit;
 
         end else begin // we have a miss
           missReq <= e;
@@ -228,7 +228,7 @@ module mkCache(Cache);
                 address: idx,
                 datain: ?});
           end
-          mshr <= StartMiss;
+          mshr[1] <= StartMiss;
         end
 
       end
