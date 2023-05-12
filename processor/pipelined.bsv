@@ -181,8 +181,7 @@ module mkpipelined(RVIfc);
             labelKonataLeft(lfh,from_fetch.k_id, $format(" Potential r1: %x, Potential r2: %x" , rs1, rs2));
         end
         else begin
-            if (debug) $display("[Decode STALL 1] ", fshow(decodedInst));
-            if (debug) $display("[Decode STALL 1] %x %x", scoreboard[rs1_idx][4], scoreboard[rs2_idx][4]); 
+            if (debug) $display("[Decode STALL 1] %x %x", scoreboard[rs1_idx][4], scoreboard[rs2_idx][4], fshow(decodedInst)); 
         end
     endrule
 
@@ -220,8 +219,7 @@ module mkpipelined(RVIfc);
             labelKonataLeft(lfh,from_fetch.k_id, $format(" Potential r1: %x, Potential r2: %x" , rs1, rs2));
         end
         else begin
-            if (debug) $display("[Decode STALL 2] ", fshow(decodedInst));
-            if (debug) $display("[Decode STALL 2] %x %x", scoreboard[rs1_idx][5], scoreboard[rs2_idx][5]); 
+            if (debug) $display("[Decode STALL 2] %x %x", scoreboard[rs1_idx][5], scoreboard[rs2_idx][5], fshow(decodedInst)); 
         end
     endrule
 
@@ -311,6 +309,11 @@ module mkpipelined(RVIfc);
         end
     endrule
 
+    rule printexecute if (!starting);
+        let toWrite = e2w.first1();
+        $display("[Execute PRINT] ", fshow(toWrite));
+    endrule
+
     rule execute2 if (!starting && auth_execute[1]);
         let from_decode = d2e.first2();
 
@@ -331,7 +334,7 @@ module mkpipelined(RVIfc);
 
             let controlResult = execControl32(from_decode.dInst.inst, from_decode.rv1, from_decode.rv2, imm, from_decode.pc);
             let nextPc = controlResult.nextPC;
-            let current_epoch = epoch[1]; //this is a problem
+            let current_epoch = epoch[1]; 
 
             if(current_epoch == from_decode.epoch) begin
                 if(nextPc != from_decode.ppc) begin //check if branch has occurred
@@ -356,6 +359,7 @@ module mkpipelined(RVIfc);
                     dInst: from_decode.dInst,
                     k_id : from_decode.k_id // <- This is a unique identifier per instructions, for logging purposes
                 });
+                if (debug) $display("[Execute 2] enque ", fshow(from_decode));
 
             end else begin
                 squashed.enq2(from_decode.k_id); //need to modify for Konata
@@ -374,6 +378,7 @@ module mkpipelined(RVIfc);
         let from_execute = e2w.first1();
         e2w.deq1();
         auth_writeback[0] <= True;
+        if (debug) $display("[Writeback 1] ", fshow(from_execute));
 
 		writebackKonata(lfh,from_execute.k_id); //need to modify these for Konata or it'll be spicy
         retired.enq1(from_execute.k_id);
@@ -403,7 +408,6 @@ module mkpipelined(RVIfc);
              endcase
 		end
 
-		if(debug) $display("[Writeback 1]", fshow(from_execute.dInst));
         if (!from_execute.dInst.legal) begin
 			if (debug) $display("[Writeback 1] Illegal Inst, Drop and fault: ", fshow(from_execute.dInst));
 			pc[2] <= 0;	// Fault
@@ -417,18 +421,18 @@ module mkpipelined(RVIfc);
             end
 		end
 	endrule
-
+    /*
     rule writeback2 if (!starting && auth_writeback[1]);
         let from_execute = e2w.first2();
         if (!isMemoryInst(from_execute.dInst)) begin
             e2w.deq2();
+            if (debug) $display("[Writeback 2] ", fshow(from_execute);)
 
             writebackKonata(lfh,from_execute.k_id); //need to modify these for Konata or it'll be spicy
             retired.enq2(from_execute.k_id);
 
             let fields = getInstFields(from_execute.dInst.inst);
             
-            if(debug) $display("[Writeback 2]", fshow(from_execute.dInst));
             if (!from_execute.dInst.legal) begin
                 if (debug) $display("[Writeback 2] Illegal Inst, Drop and fault: ", fshow(from_execute.dInst));
                 pc[3] <= 0;	// Fault
@@ -443,7 +447,7 @@ module mkpipelined(RVIfc);
             end
         end
 	endrule
-	
+	*/
 
     rule reset_authorization;
         auth_decode[1] <= False;
