@@ -159,7 +159,7 @@ module mkpipelined(RVIfc);
 		let rs1 = (rs1_idx ==0 ? 0 : rf[rs1_idx][2]);
 		let rs2 = (rs2_idx == 0 ? 0 : rf[rs2_idx][2]);
 
-        if(scoreboard[rs1_idx][4] == 0 && scoreboard[rs2_idx][4] == 0) begin
+        if(scoreboard[rs1_idx][4] == 0 && scoreboard[rs2_idx][4] == 0 && scoreboard[rd_idx][4] == 0) begin
             if (debug) $display("[Decode] ", fshow(decodedInst));
         
             if(decodedInst.valid_rd) begin scoreboard[rd_idx][4] <= scoreboard[rd_idx][4] + 1; end //update scoreboard to include new destination register
@@ -198,7 +198,7 @@ module mkpipelined(RVIfc);
 		let rs1 = (rs1_idx ==0 ? 0 : rf[rs1_idx][3]);
 		let rs2 = (rs2_idx == 0 ? 0 : rf[rs2_idx][3]);
 
-        if(scoreboard[rs1_idx][5] == 0 && scoreboard[rs2_idx][5] == 0) begin
+        if(scoreboard[rs1_idx][5] == 0 && scoreboard[rs2_idx][5] == 0 && scoreboard[rd_idx][5] == 0) begin
             if (debug) $display("[Decode] ", fshow(decodedInst));
         
             if(decodedInst.valid_rd) begin scoreboard[rd_idx][5] <= scoreboard[rd_idx][5] + 1; end //update scoreboard to include new destination register
@@ -226,7 +226,6 @@ module mkpipelined(RVIfc);
     rule execute1 if (!starting);
         let from_decode = d2e.first1();
         d2e.deq1();
-        auth_execute[0] <= True;
         if (debug) $display("[Execute 1] ", fshow(from_decode.dInst));
 
 		executeKonata(lfh, from_decode.k_id);
@@ -245,6 +244,8 @@ module mkpipelined(RVIfc);
         let current_epoch = epoch[0];
 
         if(current_epoch == from_decode.epoch) begin
+            auth_execute[0] <= True;
+
             if(nextPc != from_decode.ppc) begin //check if branch has occurred
                 epoch[0] <= current_epoch + 1; //update the epoch
                 if (debug) $display(" [Execute 1] Next pc != ppc %x %x", nextPc, from_decode.ppc);
@@ -362,7 +363,7 @@ module mkpipelined(RVIfc);
                 if (debug) $display("[Execute 2] enque ", fshow(from_decode));
 
             end else begin
-                squashed.enq2(from_decode.k_id); //need to modify for Konata
+                squashed.enq2(from_decode.k_id); 
                 labelKonataLeft(lfh,from_decode.k_id, $format(" epoch: %x, curepoch: %x ", from_decode.epoch, current_epoch));
 
                 if(from_decode.dInst.valid_rd) begin //remove from scoreboard
@@ -380,7 +381,7 @@ module mkpipelined(RVIfc);
         auth_writeback[0] <= True;
         if (debug) $display("[Writeback 1] ", fshow(from_execute));
 
-		writebackKonata(lfh,from_execute.k_id); //need to modify these for Konata or it'll be spicy
+		writebackKonata(lfh,from_execute.k_id); 
         retired.enq1(from_execute.k_id);
 
         let fields = getInstFields(from_execute.dInst.inst);
@@ -421,14 +422,14 @@ module mkpipelined(RVIfc);
             end
 		end
 	endrule
-    /*
+    
     rule writeback2 if (!starting && auth_writeback[1]);
         let from_execute = e2w.first2();
         if (!isMemoryInst(from_execute.dInst)) begin
             e2w.deq2();
-            if (debug) $display("[Writeback 2] ", fshow(from_execute);)
+            if (debug) $display("[Writeback 2] ", fshow(from_execute));
 
-            writebackKonata(lfh,from_execute.k_id); //need to modify these for Konata or it'll be spicy
+            writebackKonata(lfh,from_execute.k_id); 
             retired.enq2(from_execute.k_id);
 
             let fields = getInstFields(from_execute.dInst.inst);
@@ -447,7 +448,7 @@ module mkpipelined(RVIfc);
             end
         end
 	endrule
-	*/
+	
 
     rule reset_authorization;
         auth_decode[1] <= False;
